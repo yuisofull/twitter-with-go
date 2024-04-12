@@ -7,6 +7,10 @@ import (
 	"fmt"
 )
 
+const (
+	TableName = "images"
+)
+
 type Image struct {
 	Id        int    `json:"id" gorm:"column:id"`
 	Url       string `json:"url" gorm:"column:url"`
@@ -15,8 +19,6 @@ type Image struct {
 	CloudName string `json:"cloud_name,omitempty" gorm:"-"`
 	Extension string `json:"extension,omitempty" gorm:"-"`
 }
-
-const TableName = "images"
 
 func (Image) TableName() string {
 	return TableName

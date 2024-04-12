@@ -8,7 +8,7 @@ import (
 	"twitter/modules/user/usermodel"
 )
 
-func (s *sqlStore) FindUser(ctx context.Context, conditions map[string]interface{}, moreInfo ...string) (*usermodel.User, error) {
+func (s *sqlStore) FindUser(_ context.Context, conditions map[string]interface{}, moreInfo ...string) (*usermodel.User, error) {
 	//_, span := trace.StartSpan(ctx, "List Restaurant Business")
 	//defer span.End()
 

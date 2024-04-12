@@ -22,7 +22,7 @@ func setupRoute(appCtx appctx.AppContext, v1 *gin.RouterGroup) {
 
 	v1.POST("/authenticate", ginuser.Login(appCtx))
 
-	v1.GET("/profile", middleware.RequireAuth(appCtx, userCachingStore), ginuser.GetProfile(appCtx))
+	v1.GET("/profile", middleware.RequireAuth(appCtx, userStore), ginuser.GetProfile(appCtx))
 	{
 		tweets := v1.Group("/tweets")
 		tweets.POST("", middleware.RequireAuth(appCtx, userCachingStore), gintwitter.CreateTweet(appCtx))

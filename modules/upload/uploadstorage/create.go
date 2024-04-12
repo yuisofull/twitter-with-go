@@ -6,8 +6,8 @@ import (
 	"twitter/modules/upload/uploadmodel"
 )
 
-func (store *sqlStore) CreateImage(context context.Context, data *uploadmodel.Upload) error {
-	db := store.db
+func (store *sqlStore) CreateImage(_ context.Context, data *uploadmodel.Upload) error {
+	db := store.db.Omit("Status", "UpdatedAt")
 
 	if err := db.Table(uploadmodel.TableName).
 		Create(data).Error; err != nil {

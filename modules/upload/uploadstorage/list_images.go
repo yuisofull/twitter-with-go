@@ -3,17 +3,19 @@ package uploadstorage
 import (
 	"context"
 	"twitter/common"
+	"twitter/modules/upload/uploadmodel"
 )
 
-func (store sqlStore) ListImages(ctx context.Context,
+func (store *sqlStore) ListImages(
+	ctx context.Context,
 	ids []int,
 	moreKeys ...string,
-) ([]common.Image, error) {
+) ([]uploadmodel.Upload, error) {
 	db := store.db
 
-	var result []common.Image
+	var result []uploadmodel.Upload
 
-	db = db.Table(common.Image{}.TableName())
+	db = db.Table(uploadmodel.TableName)
 
 	if err := db.Where("id in (?)", ids).
 		Find(&result).

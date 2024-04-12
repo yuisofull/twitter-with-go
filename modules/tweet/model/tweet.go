@@ -19,7 +19,6 @@ type Tweet struct {
 	UserID          int                `json:"-" gorm:"column:user_id;"`
 	User            *common.SimpleUser `json:"user" gorm:"preload:false;foreignKey:Id;"`
 	Text            string             `json:"text_content" gorm:"column:text_content;"`
-	ImageUIDs       *[]common.UID      `json:"-" gorm:"-" form:"images"`
 	Images          *common.Images     `json:"image" gorm:"column:image;" form:"-"`
 }
 
@@ -69,10 +68,10 @@ func (tw *TweetES) ToTweet() Tweet {
 
 type TweetCreate struct {
 	common.SQLModel `json:",inline"`
-	UserID          int           `json:"-" gorm:"column:user_id;"`
-	Text            string        `json:"text_content" gorm:"column:text_content;"`
-	ImageUIDs       []common.UID  `json:"-" gorm:"-" form:"images"`
-	Images          common.Images `json:"image" gorm:"column:image;" form:"-"`
+	UserID          int            `json:"-" gorm:"column:user_id;"`
+	Text            string         `json:"text_content" gorm:"column:text_content;"`
+	ImageUIDs       []string       `json:"images" gorm:"-" form:"images"`
+	Images          *common.Images `json:"images-metadata" gorm:"column:images;" form:"-"`
 }
 
 func (TweetCreate) TableName() string { return TableName }

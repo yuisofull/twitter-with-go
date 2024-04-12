@@ -23,6 +23,16 @@ func (u *Upload) Mask(isAdmin bool) {
 	u.GenUID(common.DBTypeUpload)
 }
 
+func (u *Upload) ToImage() *common.Image {
+	return &common.Image{
+		Id:     u.Id,
+		Url:    u.Url,
+		Width:  u.Width,
+		Height: u.Height,
+	}
+
+}
+
 var (
 	ErrFileTooLarge = common.NewCustomError(
 		errors.New("file too large"),
