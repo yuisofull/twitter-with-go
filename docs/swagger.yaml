@@ -75,13 +75,9 @@ definitions:
     type: object
   tweetmodel.TweetCreate:
     properties:
-      images:
+      imageIDs:
         items:
           type: string
-        type: array
-      images-metadata:
-        items:
-          $ref: '#/definitions/common.Image'
         type: array
       text_content:
         type: string

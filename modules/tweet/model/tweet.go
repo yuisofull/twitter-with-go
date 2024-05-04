@@ -70,8 +70,8 @@ type TweetCreate struct {
 	common.SQLModel `json:",inline" swaggerignore:"true"`
 	UserID          int            `json:"-" gorm:"column:user_id;"`
 	Text            string         `json:"text_content" gorm:"column:text_content;"`
-	ImageUIDs       []string       `json:"images" gorm:"-" form:"images"`
-	Images          *common.Images `json:"images-metadata" gorm:"column:images;" form:"-"`
+	ImageUIDs       []string       `json:"imageIDs" gorm:"-" form:"imageIDs"`
+	Images          *common.Images `json:"-" gorm:"column:images;" form:"-" swaggerignore:"true"`
 }
 
 func (TweetCreate) TableName() string { return TableName }

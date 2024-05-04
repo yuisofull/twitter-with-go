@@ -429,16 +429,10 @@ const docTemplate = `{
         "tweetmodel.TweetCreate": {
             "type": "object",
             "properties": {
-                "images": {
+                "imageIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
-                },
-                "images-metadata": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/common.Image"
                     }
                 },
                 "text_content": {
