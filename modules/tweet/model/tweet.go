@@ -67,7 +67,7 @@ func (tw *TweetES) ToTweet() Tweet {
 }
 
 type TweetCreate struct {
-	common.SQLModel `json:",inline"`
+	common.SQLModel `json:",inline" swaggerignore:"true"`
 	UserID          int            `json:"-" gorm:"column:user_id;"`
 	Text            string         `json:"text_content" gorm:"column:text_content;"`
 	ImageUIDs       []string       `json:"images" gorm:"-" form:"images"`

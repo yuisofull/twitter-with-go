@@ -7,7 +7,7 @@ import (
 const EntityName = "UserID"
 
 type UserCreate struct {
-	common.SQLModel `json:",inline"`
+	common.SQLModel `json:",inline" swaggerignore:"true"`
 	Email           string        `json:"email" gorm:"column:email;"`
 	Password        string        `json:"password" gorm:"column:password;"`
 	LastName        string        `json:"last_name" gorm:"column:last_name;"`

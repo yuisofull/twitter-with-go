@@ -3,15 +3,21 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/olivere/elastic/v7"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"twitter/component/appctx"
 	"twitter/component/uploadprovider"
+	"twitter/docs"
 	"twitter/middleware"
 )
 
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	//dsn := os.Getenv("MYSQL_CONN_STRING")
 	dsn := "system:admin123@tcp(127.0.0.1:3306)/temp_db?charset=utf8mb4&parseTime=True&loc=Local"
@@ -35,6 +41,9 @@ func main() {
 	r := gin.Default()
 
 	r.Use(middleware.Recover(appCtx))
+
+	docs.SwaggerInfo.BasePath = "/v1"
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

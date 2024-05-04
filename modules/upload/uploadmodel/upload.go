@@ -9,7 +9,7 @@ const EntityName = "Upload"
 const TableName = "images"
 
 type Upload struct {
-	common.SQLModel `json:",inline" gorm:"embedded"`
+	common.SQLModel `json:",inline" gorm:"embedded" swaggerignore:"true"`
 	Url             string `json:"url" gorm:"column:url"`
 	Width           int    `json:"width" gorm:"column:width"`
 	Height          int    `json:"height" gorm:"column:height"`

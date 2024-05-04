@@ -12,6 +12,16 @@ import (
 	"twitter/modules/upload/uploadstorage"
 )
 
+// CreateTweet
+// @Summary Create tweet
+// @Description Create tweet
+// @Tags tweets
+// @Accept  json
+// @Produce  json
+// @Param tweet body tweetmodel.TweetCreate true "Tweet"
+// @Success 200 {object} common.simpleSuccessRes{data=string}
+// @Security ApiKeyAuth
+// @Router /tweets [post]
 func CreateTweet(ctx appctx.AppContext) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requester := c.MustGet(common.CurrentUser).(common.Requester)

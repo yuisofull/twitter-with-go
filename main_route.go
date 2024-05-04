@@ -16,7 +16,7 @@ func setupRoute(appCtx appctx.AppContext, v1 *gin.RouterGroup) {
 	userCachingStore := memcache.NewUserCaching(memcache.NewCaching(), userStore)
 
 	//POST /v1/upload
-	v1.POST("/upload", ginupload.Upload(appCtx))
+	v1.POST("/upload", middleware.RequireAuth(appCtx, userStore), ginupload.Upload(appCtx))
 
 	v1.POST("/register", ginuser.Register(appCtx))
 

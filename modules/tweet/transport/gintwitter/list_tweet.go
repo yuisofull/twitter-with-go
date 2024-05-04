@@ -11,6 +11,18 @@ import (
 	tweetstorage "twitter/modules/tweet/storage/gorm"
 )
 
+// ListTweet
+// @Summary List tweet
+// @Description List tweet
+// @Tags tweets
+// @Accept  json
+// @Produce  json
+// @Param page query int false "Page"
+// @Param limit query int false "Limit"
+// @Param user_id query string false "User ID"
+// @Param search query string false "Search"
+// @Success 200 {object} common.successRes{data=[]tweetmodel.Tweet}
+// @Router /tweets [get]
 func ListTweet(ctx appctx.AppContext) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		db := ctx.GetMyDBConnection()

@@ -18,6 +18,16 @@ import (
 // 2. Save to cloud storage (S3)
 // 3. Improve security
 
+// Upload
+// @Summary Upload file
+// @Description Upload file
+// @Tags uploads
+// @Accept  mpfd
+// @Produce  json
+// @Param file formData file true "File"
+// @Success 200 {object} common.simpleSuccessRes{data=string}
+// @Security ApiKeyAuth
+// @Router /upload [post]
 func Upload(appCtx appctx.AppContext) func(*gin.Context) {
 	return func(c *gin.Context) {
 		db := appCtx.GetMyDBConnection()
