@@ -13,15 +13,14 @@ import (
 )
 
 type Tweet struct {
-	UserID    string    `json:"user_id,omitempty" dynamo:"userID,hash"`
+	UserID    string    `json:"user_id,omitempty" dynamo:"UserID,hash"`
 	Text      string    `json:"text_content"`
-	ID        string    `json:"id,omitempty" dynamo:"ID,range"`
+	ID        int       `json:"id,omitempty" dynamo:"TweetID,range"`
 	Status    string    `json:"status,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	//FakeID    *UID       `json:"id" gorm:"-"`
 	//Images          *common.Images     `json:"image" gorm:"column:image;" form:"-"`
-
 }
 
 const TableName = "tweet"
@@ -53,7 +52,7 @@ func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, 
 
 	var newTweet Tweet
 
-	err = client.Get("userID", tweet.UserID).Range("ID", dynamo.Equal, tweet.ID).One(&newTweet)
+	err = client.Get("UserID", tweet.UserID).Range("TweetID", dynamo.Equal, tweet.ID).One(&newTweet)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,

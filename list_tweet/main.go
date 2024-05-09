@@ -1,17 +1,34 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/guregu/dynamo"
+	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
+
+type response struct {
+	Data   []Tweet `json:"data"`
+	Paging Paging  `json:"paging"`
+	Filter Filter  `json:"filter"`
+}
+
+type Paging struct {
+	Limit      int     `json:"limit" form:"limit"`
+	Total      int     `json:"total,omitempty" form:"total"`
+	Cursor     *string `json:"cursor,omitempty" form:"cursor"`
+	NextCursor *string `json:"next_cursor,omitempty"`
+}
 
 type Filter struct {
 	//FakeUserID string `json:"-" form:"user_id"`
@@ -21,48 +38,86 @@ type Filter struct {
 }
 
 type Tweet struct {
-	UserID    string     `json:"user_id,omitempty"`
-	Text      string     `json:"text_content"`
-	Id        string     `json:"id,omitempty"`
-	Status    string     `json:"status,omitempty"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	UserID    string    `json:"user_id,omitempty" dynamo:"UserID,hash"`
+	Text      string    `json:"text_content"`
+	ID        int       `json:"id,omitempty" dynamo:"TweetID,range"`
+	Status    string    `json:"status,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	//FakeID    *UID       `json:"id" gorm:"-"`
 	//Images          *common.Images     `json:"image" gorm:"column:image;" form:"-"`
+}
+
+func Encode(key dynamo.PagingKey) *string {
+	hashKey := base58.Encode([]byte(*key["UserID"].S))
+	rangeKey := base58.Encode([]byte(*key["TweetID"].N))
+	res := fmt.Sprintf("%s.%s", hashKey, rangeKey)
+	return &res
+}
+
+func Decode(encoded string) (dynamo.PagingKey, error) {
+	parts := strings.Split(encoded, ".")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid paging key")
+	}
+	return dynamo.PagingKey{
+		"UserID":  &dynamodb.AttributeValue{S: aws.String(string(base58.Decode(parts[0])))},
+		"TweetID": &dynamodb.AttributeValue{N: aws.String(string(base58.Decode(parts[1])))},
+	}, nil
 }
 
 const TableName = "tweet"
 
 func list(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       "Error while retrieving AWS credentials",
-		}, nil
+	var paging Paging
+	//var Filter *Filter
+
+	var results []Tweet
+	sess := session.Must(session.NewSession())
+	db := dynamo.New(sess, &aws.Config{Region: aws.String("ap-south-1")})
+	table := db.Table(TableName)
+
+	scan := table.Scan()
+
+	paging.Limit = 10
+	if req.QueryStringParameters["limit"] != "" {
+		limit, err := strconv.Atoi(req.QueryStringParameters["limit"])
+		if err == nil {
+			paging.Limit = limit
+		}
+	}
+	if req.QueryStringParameters["cursor"] != "" {
+		jsonStr := req.QueryStringParameters["cursor"]
+		paging.Cursor = &jsonStr
+		key, err := Decode(*paging.Cursor)
+		if err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode: 400,
+				Body:       err.Error(),
+			}, nil
+		}
+		scan.StartFrom(key)
 	}
 
-	svc := dynamodb.NewFromConfig(cfg)
-	out, err := svc.Scan(context.TODO(), &dynamodb.ScanInput{
-		TableName: aws.String(TableName),
-	})
+	key, err := scan.Limit(int64(paging.Limit)).AllWithLastEvaluatedKey(&results)
+	log.Println("results: ", results)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Error while getting tweet: %s", err.Error()),
+		}, nil
+	}
+	paging.NextCursor = Encode(key)
+	paging.Total = len(results)
+
+	res, err := json.Marshal(response{Data: results, Paging: paging})
+	log.Println(string(res))
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 400,
 			Body:       err.Error(),
 		}, nil
 	}
-
-	var tweets []Tweet
-	err = attributevalue.UnmarshalListOfMaps(out.Items, &tweets)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       "Error while Unmarshal tweets",
-		}, nil
-	}
-
-	res, _ := json.Marshal(tweets)
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Headers: map[string]string{
