@@ -24,17 +24,17 @@ type response struct {
 }
 
 type Paging struct {
-	Limit      int     `json:"limit" form:"limit"`
-	Total      int     `json:"total,omitempty" form:"total"`
-	Cursor     *string `json:"cursor,omitempty" form:"cursor"`
+	Limit      int     `json:"limit"`
+	Total      int     `json:"total,omitempty"`
+	Cursor     *string `json:"cursor,omitempty"`
 	NextCursor *string `json:"next_cursor,omitempty"`
 }
 
 type Filter struct {
 	//FakeUserID string `json:"-" form:"user_id"`
-	UserID int    `json:"user_id,omitempty" form:"-"`
+	UserID int    `json:"user_id,omitempty"`
 	Status []int  `json:"-"`
-	Search string `json:"search,omitempty" form:"search"`
+	Search string `json:"search,omitempty"`
 }
 
 type Tweet struct {
@@ -44,8 +44,7 @@ type Tweet struct {
 	Status    string    `json:"status,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	//FakeID    *UID       `json:"id" gorm:"-"`
-	//Images          *common.Images     `json:"image" gorm:"column:image;" form:"-"`
+	Image     string    `json:"image"`
 }
 
 func Encode(key dynamo.PagingKey) *string {
@@ -121,7 +120,8 @@ func list(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":                "application/json",
+			"Access-Control-Allow-Origin": "*", // Required for CORS support to work
 		},
 		Body: string(res),
 	}, nil
