@@ -16,13 +16,14 @@ import (
 	"github.com/guregu/dynamo"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 type Tweet struct {
-	UserID    string    `json:"user_id,omitempty" dynamo:"UserID,hash"`
+	UserID    string    `json:"-" dynamo:"UserID,hash"`
 	Text      string    `json:"text_content"`
 	ID        int       `json:"-" dynamo:"TweetID,range"`
 	Status    int       `json:"status,omitempty"`
@@ -34,7 +35,7 @@ type Tweet struct {
 const TableName = "tweet"
 
 var (
-	bucketName = "go-food-delivery2" //change to your bucket name
+	bucketName = os.Getenv("Bucket") //change to your bucket name
 	region     = "ap-southeast-1"
 )
 
@@ -98,65 +99,74 @@ func Upload(request events.APIGatewayProxyRequest, cfg aws1.Config) (image strin
 	return
 }
 
-func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func InvalidRequest(err error) (events.APIGatewayProxyResponse, error) {
+	return events.APIGatewayProxyResponse{
+		StatusCode: 400,
+		Headers: map[string]string{
+			"Content-Type":                "application/json",
+			"Access-Control-Allow-Origin": "*",
+		},
+		Body: fmt.Sprintf("Error: %s", err.Error()),
+	}, nil
+}
+
+func getUserName(req events.APIGatewayProxyRequest) (string, error) {
+	if req.RequestContext.Authorizer == nil {
+		return "", fmt.Errorf("No authorizer found")
+	}
+
+	if req.RequestContext.Authorizer["claims"] == nil {
+		return "", fmt.Errorf("No claims found")
+	}
+
+	claims := req.RequestContext.Authorizer["claims"].(map[string]interface{})
+
+	if claims["cognito:username"] == nil {
+		return "", fmt.Errorf("No username found")
+	}
+
+	return claims["cognito:username"].(string), nil
+
+}
+
+func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				"Content-Type":                "application/json",
-				"Access-Control-Allow-Origin": "*",
-			},
-			Body: "Error while retrieving AWS credentials",
-		}, nil
+		return InvalidRequest(err)
 	}
 
 	image, err := Upload(req, cfg)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				"Content-Type":                "application/json",
-				"Access-Control-Allow-Origin": "*",
-			},
-			Body: err.Error(),
-		}, nil
+		return InvalidRequest(err)
 	}
 
 	var tweet Tweet
 
 	r, err := awslambda.NewReaderMultipart(req)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				"Content-Type":                "application/json",
-				"Access-Control-Allow-Origin": "*",
-			},
-			Body: err.Error(),
-		}, nil
+		return InvalidRequest(err)
 	}
 
 	form, err := r.ReadForm(1024)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				"Content-Type":                "application/json",
-				"Access-Control-Allow-Origin": "*",
-			},
-			Body: err.Error(),
-		}, nil
+		return InvalidRequest(err)
 	}
 
+	err = json.Unmarshal([]byte(form.Value["data"][0]), &tweet)
+	if err != nil {
+		return InvalidRequest(err)
+	}
 	tweet.ID = time.Now().Nanosecond()
 	tweet.CreatedAt = time.Now()
 	tweet.UpdatedAt = time.Now()
 	tweet.Status = 1
-	tweet.Text = form.Value["text_content"][0]
-	tweet.UserID = form.Value["user_id"][0]
+	//tweet.Text = form.Value["text_content"][0]
+	//tweet.UserID = form.Value["user_id"][0]
 	tweet.Image = image
-
+	tweet.UserID, err = getUserName(req)
+	if err != nil {
+		return InvalidRequest(err)
+	}
 	sess := session.Must(session.NewSession())
 	db := dynamo.New(sess, &aws.Config{Region: aws.String("ap-south-1")})
 	client := db.Table(TableName)
@@ -196,7 +206,7 @@ func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, 
 }
 
 func main() {
-	lambda.Start(create)
+	lambda.Start(lambdaHandler)
 }
 
 //func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

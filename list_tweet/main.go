@@ -41,7 +41,7 @@ type Tweet struct {
 	UserID    string    `json:"user_id,omitempty" dynamo:"UserID,hash"`
 	Text      string    `json:"text_content"`
 	ID        int       `json:"id,omitempty" dynamo:"TweetID,range"`
-	Status    string    `json:"status,omitempty"`
+	Status    int       `json:"status,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	Image     string    `json:"image"`
@@ -78,7 +78,7 @@ func list(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	scan := table.Scan()
 
-	paging.Limit = 10
+	paging.Limit = 1
 	if req.QueryStringParameters["limit"] != "" {
 		limit, err := strconv.Atoi(req.QueryStringParameters["limit"])
 		if err == nil {
