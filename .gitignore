@@ -1,2 +1,4 @@
-.zip
 *.zip
+local_stack/
+**/.aws-sam/
+test/
