@@ -12,6 +12,7 @@ import (
 	"github.com/guregu/dynamo"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func Decode(encoded string) (dynamo.PagingKey, error) {
 	}, nil
 }
 
-const TableName = "tweet"
+var TableName = os.Getenv("TWEET_TABLE_NAME")
 
 func list(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var paging Paging
@@ -73,7 +74,7 @@ func list(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	var results []Tweet
 	sess := session.Must(session.NewSession())
-	db := dynamo.New(sess, &aws.Config{Region: aws.String("ap-south-1")})
+	db := dynamo.New(sess, &aws.Config{Region: aws.String(os.Getenv("REGION"))})
 	table := db.Table(TableName)
 
 	scan := table.Scan()

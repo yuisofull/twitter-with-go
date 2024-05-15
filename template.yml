@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >
+  Tweet Application with various Lambda functions
+
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Timeout: 30
+    MemorySize: 128
+    Architectures:
+      - arm64
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: "TweetAppUserPool"
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      MfaConfiguration: "OFF"
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: "TweetAppUserPoolClient"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+
+  TweetTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "TweetTable"
+      AttributeDefinitions:
+        - AttributeName: "UserID"
+          AttributeType: "S"
+        - AttributeName: "TweetID"
+          AttributeType: "N"
+      KeySchema:
+        - AttributeName: "UserID"
+          KeyType: "HASH"
+        - AttributeName: "TweetID"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: "tweet-app-bucket.1991"
+
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: "TweetApi"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+      StageName: prod
+      BinaryMediaTypes:
+        - "multipart/form-data"
+        - "*/*"
+
+  ChangePasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: change_password/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+      Events:
+        ChangePasswordApi:
+          Type: Api
+          Properties:
+            Path: /change-password
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  ConfirmSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: confirm-sign-up/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+      Events:
+        ConfirmSignUpApi:
+          Type: Api
+          Properties:
+            Path: /confirm-sign-up
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  CreateTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: create_tweet/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          TWEET_TABLE_NAME: !Ref TweetTable
+          REGION: !Ref "AWS::Region"
+          BUCKET_NAME: !Ref MyS3Bucket
+      Events:
+        CreateTweetApi:
+          Type: Api
+          Properties:
+            Path: /tweet
+            Method: post
+            RestApiId: !Ref ApiGateway
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  ListTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: list_tweet/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          TWEET_TABLE_NAME: !Ref TweetTable
+          REGION: !Ref "AWS::Region"
+      Events:
+        ListTweetApi:
+          Type: Api
+          Properties:
+            Path: /tweet
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: login/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+      Events:
+        LoginApi:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: register/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+      Events:
+        RegisterApi:
+          Type: Api
+          Properties:
+            Path: /register
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:*'
+                  - 's3:*'
+                Resource: '*'
+
+Outputs:
+  ChangePasswordFunction:
+    Description: "Change Password Lambda Function ARN"
+    Value: !GetAtt ChangePasswordFunction.Arn
+  ConfirmSignUpFunction:
+    Description: "Confirm Sign Up Lambda Function ARN"
+    Value: !GetAtt ConfirmSignUpFunction.Arn
+  CreateTweetFunction:
+    Description: "Create Tweet Lambda Function ARN"
+    Value: !GetAtt CreateTweetFunction.Arn
+  ListTweetFunction:
+    Description: "List Tweet Lambda Function ARN"
+    Value: !GetAtt ListTweetFunction.Arn
+  LoginFunction:
+    Description: "Login Lambda Function ARN"
+    Value: !GetAtt LoginFunction.Arn
+  RegisterFunction:
+    Description: "Register Lambda Function ARN"
+    Value: !GetAtt RegisterFunction.Arn
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref UserPoolClient
+  ApiGatewayEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/"

@@ -5,3 +5,10 @@ delete-table:
 update-lambda:
 	./list_tweet/build.sh
 	./create_tweet/build.sh
+	./login/build.sh
+	./register/build.sh
+	./change_password/build.sh
+	./confirm_sign_up/build.sh
+deploy:
+	sam build
+	sam deploy

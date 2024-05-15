@@ -32,11 +32,11 @@ type Tweet struct {
 	Image     string    `json:"image,omitempty"`
 }
 
-const TableName = "tweet"
+var TableName = os.Getenv("TWEET_TABLE_NAME")
 
 var (
-	bucketName = os.Getenv("Bucket") //change to your bucket name
-	region     = "ap-southeast-1"
+	bucketName = os.Getenv("BUCKET_NAME") //change to your bucket name
+	region     = os.Getenv("REGION")
 )
 
 type customStruct struct {
@@ -112,17 +112,17 @@ func InvalidRequest(err error) (events.APIGatewayProxyResponse, error) {
 
 func getUserName(req events.APIGatewayProxyRequest) (string, error) {
 	if req.RequestContext.Authorizer == nil {
-		return "", fmt.Errorf("No authorizer found")
+		return "", fmt.Errorf("no authorizer found")
 	}
 
 	if req.RequestContext.Authorizer["claims"] == nil {
-		return "", fmt.Errorf("No claims found")
+		return "", fmt.Errorf("no claims found")
 	}
 
 	claims := req.RequestContext.Authorizer["claims"].(map[string]interface{})
 
 	if claims["cognito:username"] == nil {
-		return "", fmt.Errorf("No username found")
+		return "", fmt.Errorf("no username found")
 	}
 
 	return claims["cognito:username"].(string), nil
@@ -168,7 +168,7 @@ func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		return InvalidRequest(err)
 	}
 	sess := session.Must(session.NewSession())
-	db := dynamo.New(sess, &aws.Config{Region: aws.String("ap-south-1")})
+	db := dynamo.New(sess, &aws.Config{Region: aws.String(region)})
 	client := db.Table(TableName)
 
 	err = client.Put(tweet).Run()
