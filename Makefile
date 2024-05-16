@@ -1,4 +1,5 @@
 create-table:
+	aws.exe dynamodb create-table --table-name user --attribute-definitions AttributeName=UserID,AttributeType=S --key-schema AttributeName=UserID,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 	aws.exe dynamodb create-table --table-name tweet --attribute-definitions AttributeName=UserID,AttributeType=S AttributeName=TweetID,AttributeType=N --key-schema AttributeName=UserID,KeyType=HASH AttributeName=TweetID,KeyType=RANGE --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 delete-table:
 	aws.exe dynamodb delete-table --table-name tweet

@@ -110,7 +110,7 @@ func InvalidRequest(err error) (events.APIGatewayProxyResponse, error) {
 	}, nil
 }
 
-func getUserName(req events.APIGatewayProxyRequest) (string, error) {
+func getUserID(req events.APIGatewayProxyRequest) (string, error) {
 	if req.RequestContext.Authorizer == nil {
 		return "", fmt.Errorf("no authorizer found")
 	}
@@ -121,11 +121,11 @@ func getUserName(req events.APIGatewayProxyRequest) (string, error) {
 
 	claims := req.RequestContext.Authorizer["claims"].(map[string]interface{})
 
-	if claims["cognito:username"] == nil {
+	if claims["sub"] == nil {
 		return "", fmt.Errorf("no username found")
 	}
 
-	return claims["cognito:username"].(string), nil
+	return claims["sub"].(string), nil
 
 }
 
@@ -163,7 +163,7 @@ func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	//tweet.Text = form.Value["text_content"][0]
 	//tweet.UserID = form.Value["user_id"][0]
 	tweet.Image = image
-	tweet.UserID, err = getUserName(req)
+	tweet.UserID, err = getUserID(req)
 	if err != nil {
 		return InvalidRequest(err)
 	}
