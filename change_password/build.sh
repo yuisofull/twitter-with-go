@@ -8,4 +8,4 @@ zip myfunc.zip bootstrap
 rm -rf bootstrap
 
 #aws.exe lambda update-function-code --function-ame change-password --zip-file fileb://myfunc.zip
-aws.exe lambda update-function-code --function-name twitter-ChangePasswordFunction-OiIJMwnMICpP --zip-file fileb://myfunc.zip --region ap-southeast-1
+#aws.exe lambda update-function-code --function-name twitter-ChangePasswordFunction-OiIJMwnMICpP --zip-file fileb://myfunc.zip --region ap-southeast-1

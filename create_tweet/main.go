@@ -27,12 +27,15 @@ type Tweet struct {
 	Text      string    `json:"text_content"`
 	ID        int       `json:"-" dynamo:"TweetID,range"`
 	Status    int       `json:"status,omitempty"`
+	Like      int       `json:"-"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	Image     string    `json:"image,omitempty"`
 }
 
 var TableName = os.Getenv("TWEET_TABLE_NAME")
+var FeedTweetTableName = os.Getenv("FEED_TWEET_TABLE_NAME")
+var FollowTableName = os.Getenv("FOLLOW_TABLE_NAME")
 
 var (
 	bucketName = os.Getenv("BUCKET_NAME") //change to your bucket name
@@ -55,7 +58,6 @@ func GetFileFromAPIGatewayProxyRequest(req events.APIGatewayProxyRequest) ([]byt
 	part, err := r.NextPart()
 	if err != nil {
 		return []byte{}, "", err
-
 	}
 
 	content, err := io.ReadAll(part)
@@ -126,7 +128,19 @@ func getUserID(req events.APIGatewayProxyRequest) (string, error) {
 	}
 
 	return claims["sub"].(string), nil
+}
 
+func pushToFeed(tweet Tweet, userID string) Tweet {
+	return Tweet{
+		UserID:    userID,
+		Text:      tweet.Text,
+		ID:        tweet.ID,
+		Status:    tweet.Status,
+		Like:      tweet.Like,
+		CreatedAt: tweet.CreatedAt,
+		UpdatedAt: tweet.UpdatedAt,
+		Image:     tweet.Image,
+	}
 }
 
 func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -160,13 +174,13 @@ func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	tweet.CreatedAt = time.Now()
 	tweet.UpdatedAt = time.Now()
 	tweet.Status = 1
-	//tweet.Text = form.Value["text_content"][0]
-	//tweet.UserID = form.Value["user_id"][0]
+	tweet.Like = 0
 	tweet.Image = image
 	tweet.UserID, err = getUserID(req)
 	if err != nil {
 		return InvalidRequest(err)
 	}
+
 	sess := session.Must(session.NewSession())
 	db := dynamo.New(sess, &aws.Config{Region: aws.String(region)})
 	client := db.Table(TableName)
@@ -179,17 +193,35 @@ func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		}, err
 	}
 
-	var newTweet Tweet
-
-	err = client.Get("UserID", tweet.UserID).Range("TweetID", dynamo.Equal, tweet.ID).One(&newTweet)
+	// Push to followers' feed
+	followClient := db.Table(FollowTableName)
+	var followers []struct {
+		FollowerID string `dynamo:"FollowerID"`
+	}
+	err = followClient.Get("FolloweeID", tweet.UserID).All(&followers)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Error while getting tweet: %s", err.Error()),
-		}, nil
+			Body:       fmt.Sprintf("Error while getting followers: %s", err.Error()),
+		}, err
 	}
 
-	res, err := json.Marshal(newTweet)
+	var writeRequests []interface{}
+
+	for _, follower := range followers {
+		tweet := pushToFeed(tweet, follower.FollowerID)
+		writeRequests = append(writeRequests, tweet)
+	}
+
+	_, err = client.Batch().Write().Put(writeRequests...).Run()
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Error while writing to feed: %s", err.Error()),
+		}, err
+	}
+
+	res, err := json.Marshal(tweet)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
@@ -208,55 +240,3 @@ func lambdaHandler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 func main() {
 	lambda.Start(lambdaHandler)
 }
-
-//func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-//	var tweet Tweet
-//	err := json.Unmarshal([]byte(req.Body), &tweet)
-//	tweet.ID = time.Now().Nanosecond()
-//	if err != nil {
-//		return events.APIGatewayProxyResponse{
-//			StatusCode: 400,
-//			Body:       err.Error(),
-//		}, nil
-//	}
-//
-//	tweet.CreatedAt = time.Now()
-//	tweet.UpdatedAt = time.Now()
-//
-//	sess := session.Must(session.NewSession())
-//	db := dynamo.New(sess, &aws.Config{Region: aws.String("ap-south-1")})
-//	client := db.Table(TableName)
-//
-//	err = client.Put(tweet).Run()
-//	if err != nil {
-//		return events.APIGatewayProxyResponse{
-//			StatusCode: http.StatusInternalServerError,
-//			Body:       fmt.Sprintf("Error while creating tweet: %s", err.Error()),
-//		}, nil
-//	}
-//
-//	var newTweet Tweet
-//
-//	err = client.Get("UserID", tweet.UserID).Range("TweetID", dynamo.Equal, tweet.ID).One(&newTweet)
-//	if err != nil {
-//		return events.APIGatewayProxyResponse{
-//			StatusCode: http.StatusInternalServerError,
-//			Body:       fmt.Sprintf("Error while getting tweet: %s", err.Error()),
-//		}, nil
-//	}
-//
-//	res, err := json.Marshal(newTweet)
-//	if err != nil {
-//		return events.APIGatewayProxyResponse{
-//			StatusCode: 400,
-//			Body:       err.Error(),
-//		}, nil
-//	}
-//	return events.APIGatewayProxyResponse{
-//		StatusCode: 200,
-//		Headers: map[string]string{
-//			"Content-Type": "application/json",
-//		},
-//		Body: string(res),
-//	}, nil
-//}

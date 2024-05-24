@@ -8,8 +8,13 @@ update-lambda:
 	./create_tweet/build.sh
 	./login/build.sh
 	./register/build.sh
+	./register2/build.sh
 	./change_password/build.sh
 	./confirm_sign_up/build.sh
+	./follow/build.sh
+	./like_tweet/build.sh
+	./unfollow/build.sh
+
 deploy:
 	sam build
 	sam deploy

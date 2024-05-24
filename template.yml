@@ -194,6 +194,8 @@ Resources:
         Variables:
           CLIENT_ID: !Ref UserPoolClient
           TWEET_TABLE_NAME: !Ref TweetTable
+          FEED_TWEET_TABLE_NAME: !Ref FeedTweetTable
+          FOLLOW_TABLE_NAME: !Ref FollowTable
           REGION: !Ref "AWS::Region"
           BUCKET_NAME: !Ref MyS3Bucket
       Events:
@@ -201,6 +203,88 @@ Resources:
           Type: Api
           Properties:
             Path: /tweet
+            Method: post
+            RestApiId: !Ref ApiGateway
+            Auth:
+              Authorizer: CognitoAuthorizer
+  GetFeedTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: get_feed_tweet/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          FEED_TWEET_TABLE_NAME: !Ref FeedTweetTable
+          REGION: !Ref "AWS::Region"
+      Events:
+        ListTweetApi:
+          Type: Api
+          Properties:
+            Path: /feed
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  FollowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: follow/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          FOLLOW_TABLE_NAME: !Ref FollowTable
+          REGION: !Ref "AWS::Region"
+      Events:
+        FollowApi:
+          Type: Api
+          Properties:
+            Path: /follow/{followeeID}
+            Method: post
+            RestApiId: !Ref ApiGateway
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  UnfollowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: unfollow/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          FOLLOW_TABLE_NAME: !Ref FollowTable
+          REGION: !Ref "AWS::Region"
+      Events:
+        UnfollowApi:
+          Type: Api
+          Properties:
+            Path: /unfollow/{followeeID}
+            Method: delete
+            RestApiId: !Ref ApiGateway
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  LikeTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: hello.handler
+      CodeUri: like_tweet/myfunc.zip
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          CLIENT_ID: !Ref UserPoolClient
+          FAVORITE_TABLE_NAME: !Ref FavoriteTable
+          TWEET_TABLE_NAME: !Ref TweetTable
+          REGION: !Ref "AWS::Region"
+      Events:
+        LikeTweetApi:
+          Type: Api
+          Properties:
+            Path: /like/{tweetID}
             Method: post
             RestApiId: !Ref ApiGateway
             Auth:
@@ -306,6 +390,18 @@ Outputs:
   RegisterFunction:
     Description: "Register Lambda Function ARN"
     Value: !GetAtt RegisterFunction.Arn
+  FollowFunction:
+    Description: "Follow Lambda Function ARN"
+    Value: !GetAtt FollowFunction.Arn
+  UnfollowFunction:
+    Description: "Unfollow Lambda Function ARN"
+    Value: !GetAtt UnfollowFunction.Arn
+  LikeTweetFunction:
+    Description: "Like Tweet Lambda Function ARN"
+    Value: !GetAtt LikeTweetFunction.Arn
+  GetFeedTweetFunction:
+    Description: "Get Feed Tweet Lambda Function ARN"
+    Value: !GetAtt GetFeedTweetFunction.Arn
   UserPoolId:
     Description: "Cognito User Pool ID"
     Value: !Ref UserPool
@@ -315,3 +411,6 @@ Outputs:
   ApiGatewayEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  ApiGatewayId:
+    Description: "API Gateway ID"
+    Value: !Ref ApiGateway
